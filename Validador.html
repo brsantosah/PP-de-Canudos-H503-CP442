@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Validação Material</title>
+
+<script src="https://unpkg.com/html5-qrcode"></script>
+
+<style>
+body {
+  text-align:center;
+  font-family:Arial, sans-serif;
+  background:white;
+  margin: 0;
+  padding: 20px;
+}
+
+#step { font-size:26px; font-weight:bold; margin-bottom: 10px;}
+#result { font-size:32px; margin-top:20px; font-weight:bold; }
+
+button {
+  padding:15px;
+  font-size:20px;
+  margin-top:10px;
+  border-radius:10px;
+  cursor: pointer;
+}
+</style>
+</head>
+
+<body>
+
+<h2>Validação de Material</h2>
+
+<div id="step">📷 Escaneie QR do SILO</div>
+
+<div id="reader" style="width:320px;margin:auto;"></div>
+
+<button id="btnBag" onclick="lerBag()" style="display:none;">
+📦 Escanear QR do BAG
+</button>
+
+<button id="btnNova" onclick="novaLeitura()" style="display:none;">
+🔄 Nova Leitura (Resetar)
+</button>
+
+<div id="result"></div>
+
+<script>
+// 🔊 Sons
+let okSound = new Audio("ok.mp3");
+let errorSound = new Audio("erro.mp3");
+
+// 🔓 Liberar áudio pelo clique do usuário
+let audioLiberado = false;
+document.body.addEventListener("click", () => {
+  if(!audioLiberado){
+    okSound.play().then(()=>okSound.pause()).catch(()=>{});
+    errorSound.play().then(()=>errorSound.pause()).catch(()=>{});
+    audioLiberado = true;
+  }
+},{once:true});
+
+// Materiais válidos
+const materiais = ["H503","CP442"];
+
+// Controle de estado
+let scanner = null;
+let cameraId = null;
+let siloCode = null;
+let modo = "SILO"; // SILO ou BAG
+
+// ✅ Extrair material válido do texto
+function extrairMaterial(texto){
+  if (!texto) return null;
+  texto = texto.toUpperCase().replace(/\s/g,"").replace(/-/g,"");
+
+  if(texto.includes("H503")) return "H503";
+  if(texto.includes("CP442")) return "CP442";
+
+  return null;
+}
+
+// ✅ Iniciar câmera de forma limpa
+async function iniciarScanner(){
+  try {
+    await pararScanner();
+    document.getElementById("reader").innerHTML = "";
+    scanner = new Html5Qrcode("reader");
+
+    let devices = await Html5Qrcode.getCameras();
+    if(devices.length === 0) {
+      alert("Nenhuma câmera encontrada.");
+      return;
+    }
+    // Seleciona a última câmera (geralmente a traseira em celulares)
+    cameraId = devices[devices.length-1].id;
+
+    await scanner.start(
+      cameraId,
+      { fps:10, qrbox:250 },
+      onScan
+    );
+  } catch (err) {
+    console.error("Erro ao iniciar o scanner:", err);
+  }
+}
+
+// ✅ Parar câmera completamente
+async function pararScanner(){
+  if(scanner){
+    try{
+      if(scanner.isScanning){
+        await scanner.stop();
+      }
+    } catch(e){
+      console.error("Erro ao parar:", e);
+    }
+    scanner.clear();
+    scanner = null;
+  }
+}
+
+// ✅ Processamento da leitura (Centralizado)
+async function onScan(text){
+  let material = extrairMaterial(text);
+  if(!material) return; // Ignora se o QR Code lido não contiver os materiais válidos
+
+  // Cenário 1: Leitura do SILO
+  if(modo === "SILO"){
+    await pararScanner();
+    siloCode = material;
+    modo = "ESPERANDO_BAG";
+
+    document.getElementById("result").innerHTML = "Silo: <b>"+material+"</b>";
+    document.getElementById("step").innerHTML = "Clique para escanear o BAG";
+    document.getElementById("btnBag").style.display="inline-block";
+  } 
+  // Cenário 2: Leitura do BAG
+  else if(modo === "BAG"){
+    await pararScanner();
+    validar(material);
+  }
+}
+
+// ✅ Transição para ler o BAG
+async function lerBag(){
+  modo = "BAG";
+  document.getElementById("step").innerHTML = "📦 Escaneie QR do BAG";
+  document.getElementById("btnBag").style.display="none";
+  
+  // Apenas reinicia o scanner apontando para a mesma função onScan
+  await iniciarScanner();
+}
+
+// ✅ Validação e disparo dos alarmes
+function validar(bagMaterial){
+  if(bagMaterial === siloCode){
+    document.body.style.backgroundColor="green";
+    document.getElementById("result").innerHTML = "✅ OK<br>Material: " + bagMaterial;
+
+    if(audioLiberado){
+      okSound.currentTime = 0;
+      okSound.play().catch(e => console.log(e));
+    }
+  } else {
+    document.body.style.backgroundColor="red";
+    document.getElementById("result").innerHTML = "❌ ERRO<br>Silo: "+siloCode+"<br>Bag: "+bagMaterial;
+
+    if(audioLiberado){
+      errorSound.currentTime = 0;
+      errorSound.play().catch(e => console.log(e));
+      setTimeout(()=>{
+        errorSound.currentTime = 0;
+        errorSound.play().catch(e => console.log(e));
+      }, 400);
+    }
+
+    if(navigator.vibrate) {
+      navigator.vibrate([300, 200, 300]);
+    }
+  }
+
+  document.getElementById("step").innerHTML = "Validação Concluída";
+  document.getElementById("btnNova").style.display="inline-block";
+}
+
+// 🔄 Reset Total do App (Botão Corrigir / Nova Leitura)
+async function novaLeitura(){
+  // Pausa e reseta sons ativos
+  okSound.pause();
+  errorSound.pause();
+  okSound.currentTime = 0;
+  errorSound.currentTime = 0;
+
+  // Garante fechamento de câmeras abertas
+  await pararScanner();
+
+  // Reseta variáveis de controle
+  modo = "SILO";
+  siloCode = null;
+
+  // Reseta interface visual padrão
+  document.body.style.backgroundColor="white";
+  document.getElementById("step").innerHTML = "📷 Escaneie QR do SILO";
+  document.getElementById("result").innerHTML = "";
+
+  // Oculta botões de ação temporariamente
+  document.getElementById("btnBag").style.display="none";
+  document.getElementById("btnNova").style.display="none";
+
+  // Pequeno delay para garantir estabilização do hardware da câmera
+  setTimeout(()=>{
+    iniciarScanner();
+  }, 300);
+}
+
+// Inicialização automática do primeiro passo
+iniciarScanner();
+</script>
+
+</body>
+</html>
