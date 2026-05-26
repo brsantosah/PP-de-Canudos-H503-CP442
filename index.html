@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Validação Material</title>
 
-<script src="https://unpkg.com"></script>
+<script src="https://unpkg.com/html5-qrcode"></script>
 
 <style>
 body {
@@ -27,6 +27,7 @@ button {
   cursor: pointer;
 }
 
+/* Estilo específico para o botão de limpar ficar destacado */
 #btnLimpar {
   background-color: #ff9800;
   color: white;
@@ -43,14 +44,17 @@ button {
 
 <div id="reader" style="width:320px;margin:auto;"></div>
 
+<!-- Botão para avançar para o BAG -->
 <button id="btnBag" onclick="lerBag()" style="display:none;">
 📦 Escanear QR do BAG
 </button>
 
+<!-- 🆕 Botão Limpar Silo Errado -->
 <button id="btnLimpar" onclick="novaLeitura()" style="display:none;">
 ❌ Limpar Silo Errado
 </button>
 
+<!-- Botão de Nova Leitura pós-validação -->
 <button id="btnNova" onclick="novaLeitura()" style="display:none;">
 🔄 Nova Leitura (Resetar)
 </button>
@@ -62,10 +66,10 @@ button {
 let okSound = new Audio("ok.mp3");
 let errorSound = new Audio("erro.mp3");
 
+// 🔓 Liberar áudio pelo clique do usuário
 let audioLiberado = false;
 document.body.addEventListener("click", () => {
   if(!audioLiberado){
-    // Liberar o áudio silenciosamente sem tocar som real
     okSound.play().then(()=>okSound.pause()).catch(()=>{});
     errorSound.play().then(()=>errorSound.pause()).catch(()=>{});
     audioLiberado = true;
@@ -79,8 +83,9 @@ const materiais = ["H503","CP442"];
 let scanner = null;
 let cameraId = null;
 let siloCode = null;
-let modo = "SILO"; 
+let modo = "SILO"; // SILO ou BAG
 
+// ✅ Extrair material válido do texto
 function extrairMaterial(texto){
   if (!texto) return null;
   texto = texto.toUpperCase().replace(/\s/g,"").replace(/-/g,"");
@@ -91,6 +96,7 @@ function extrairMaterial(texto){
   return null;
 }
 
+// ✅ Iniciar câmera de forma limpa
 async function iniciarScanner(){
   try {
     await pararScanner();
@@ -106,10 +112,7 @@ async function iniciarScanner(){
 
     await scanner.start(
       cameraId,
-      { 
-        fps: 15, 
-        qrbox: { width: 180, height: 180 } 
-      },
+      { fps:10, qrbox:250 },
       onScan
     );
   } catch (err) {
@@ -117,6 +120,7 @@ async function iniciarScanner(){
   }
 }
 
+// ✅ Parar câmera completamente
 async function pararScanner(){
   if(scanner){
     try{
@@ -131,10 +135,12 @@ async function pararScanner(){
   }
 }
 
+// ✅ Processamento da leitura (Centralizado)
 async function onScan(text){
   let material = extrairMaterial(text);
   if(!material) return; 
 
+  // Cenário 1: Leitura do SILO realizada com sucesso
   if(modo === "SILO"){
     await pararScanner();
     siloCode = material;
@@ -143,25 +149,28 @@ async function onScan(text){
     document.getElementById("result").innerHTML = "Silo: <b>"+material+"</b>";
     document.getElementById("step").innerHTML = "Clique para escanear o BAG";
     
+    // Exibe o botão do BAG e o novo botão de Limpar/Corrigir Silo
     document.getElementById("btnBag").style.display="inline-block";
     document.getElementById("btnLimpar").style.display="inline-block";
   } 
+  // Cenário 2: Leitura do BAG
   else if(modo === "BAG"){
     await pararScanner();
     validar(material);
   }
 }
 
+// ✅ Transição para ler o BAG
 async function lerBag(){
   modo = "BAG";
   document.getElementById("step").innerHTML = "📦 Escaneie QR do BAG";
   document.getElementById("btnBag").style.display="none";
-  document.getElementById("btnLimpar").style.display="none";
+  document.getElementById("btnLimpar").style.display="none"; // Oculta o limpar pois já travou o processo
   
   await iniciarScanner();
 }
 
-// 🔔 Os alarmes sonoros agora rodam estritamente aqui dentro
+// ✅ Validação e disparo dos alarmes
 function validar(bagMaterial){
   if(bagMaterial === siloCode){
     document.body.style.backgroundColor="green";
@@ -169,7 +178,7 @@ function validar(bagMaterial){
 
     if(audioLiberado){
       okSound.currentTime = 0;
-      okSound.play().catch(e => console.log("Erro som OK:", e));
+      okSound.play().catch(e => console.log(e));
     }
   } else {
     document.body.style.backgroundColor="red";
@@ -177,10 +186,10 @@ function validar(bagMaterial){
 
     if(audioLiberado){
       errorSound.currentTime = 0;
-      errorSound.play().catch(e => console.log("Erro som Erro:", e));
+      errorSound.play().catch(e => console.log(e));
       setTimeout(()=>{
         errorSound.currentTime = 0;
-        errorSound.play().catch(e => console.log("Erro som Erro repetido:", e));
+        errorSound.play().catch(e => console.log(e));
       }, 400);
     }
 
@@ -193,17 +202,12 @@ function validar(bagMaterial){
   document.getElementById("btnNova").style.display="inline-block";
 }
 
-// 🔄 Reset Total do App (Sem interferência ou disparo de áudio)
+// 🔄 Reset Total do App (Trata o botão Nova Leitura e o botão Limpar)
 async function novaLeitura(){
-  // Apenas silencia os objetos se eles estiverem tocando, sem forçar comandos de play
-  try {
-    okSound.pause();
-    errorSound.pause();
-    okSound.currentTime = 0;
-    errorSound.currentTime = 0;
-  } catch(e) {
-    console.log("Áudio já estava parado");
-  }
+  okSound.pause();
+  errorSound.pause();
+  okSound.currentTime = 0;
+  errorSound.currentTime = 0;
 
   await pararScanner();
 
@@ -214,6 +218,7 @@ async function novaLeitura(){
   document.getElementById("step").innerHTML = "📷 Escaneie QR do SILO";
   document.getElementById("result").innerHTML = "";
 
+  // Garante que TODOS os botões de ação fiquem escondidos no reinício
   document.getElementById("btnBag").style.display="none";
   document.getElementById("btnLimpar").style.display="none";
   document.getElementById("btnNova").style.display="none";
