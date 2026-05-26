@@ -65,6 +65,7 @@ let errorSound = new Audio("erro.mp3");
 let audioLiberado = false;
 document.body.addEventListener("click", () => {
   if(!audioLiberado){
+    // Liberar o áudio silenciosamente sem tocar som real
     okSound.play().then(()=>okSound.pause()).catch(()=>{});
     errorSound.play().then(()=>errorSound.pause()).catch(()=>{});
     audioLiberado = true;
@@ -90,7 +91,6 @@ function extrairMaterial(texto){
   return null;
 }
 
-// ✅ Iniciar câmera com o tamanho do campo de leitura reduzido
 async function iniciarScanner(){
   try {
     await pararScanner();
@@ -104,12 +104,11 @@ async function iniciarScanner(){
     }
     cameraId = devices[devices.length-1].id;
 
-    // 🛠️ ALTERAÇÃO AQUI: Mudamos qrbox para 180 para focar melhor em QRs pequenos
     await scanner.start(
       cameraId,
       { 
-        fps: 15, // Aumentado levemente para leituras mais rápidas
-        qrbox: { width: 180, height: 180 } // Caixa de leitura menor e centralizada
+        fps: 15, 
+        qrbox: { width: 180, height: 180 } 
       },
       onScan
     );
@@ -162,6 +161,7 @@ async function lerBag(){
   await iniciarScanner();
 }
 
+// 🔔 Os alarmes sonoros agora rodam estritamente aqui dentro
 function validar(bagMaterial){
   if(bagMaterial === siloCode){
     document.body.style.backgroundColor="green";
@@ -169,7 +169,7 @@ function validar(bagMaterial){
 
     if(audioLiberado){
       okSound.currentTime = 0;
-      okSound.play().catch(e => console.log(e));
+      okSound.play().catch(e => console.log("Erro som OK:", e));
     }
   } else {
     document.body.style.backgroundColor="red";
@@ -177,10 +177,10 @@ function validar(bagMaterial){
 
     if(audioLiberado){
       errorSound.currentTime = 0;
-      errorSound.play().catch(e => console.log(e));
+      errorSound.play().catch(e => console.log("Erro som Erro:", e));
       setTimeout(()=>{
         errorSound.currentTime = 0;
-        errorSound.play().catch(e => console.log(e));
+        errorSound.play().catch(e => console.log("Erro som Erro repetido:", e));
       }, 400);
     }
 
@@ -193,11 +193,17 @@ function validar(bagMaterial){
   document.getElementById("btnNova").style.display="inline-block";
 }
 
+// 🔄 Reset Total do App (Sem interferência ou disparo de áudio)
 async function novaLeitura(){
-  okSound.pause();
-  errorSound.pause();
-  okSound.currentTime = 0;
-  errorSound.currentTime = 0;
+  // Apenas silencia os objetos se eles estiverem tocando, sem forçar comandos de play
+  try {
+    okSound.pause();
+    errorSound.pause();
+    okSound.currentTime = 0;
+    errorSound.currentTime = 0;
+  } catch(e) {
+    console.log("Áudio já estava parado");
+  }
 
   await pararScanner();
 
