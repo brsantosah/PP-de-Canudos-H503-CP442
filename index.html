@@ -26,6 +26,13 @@ button {
   border-radius:10px;
   cursor: pointer;
 }
+
+/* Estilo específico para o botão de limpar ficar destacado */
+#btnLimpar {
+  background-color: #ff9800;
+  color: white;
+  border: none;
+}
 </style>
 </head>
 
@@ -37,10 +44,17 @@ button {
 
 <div id="reader" style="width:320px;margin:auto;"></div>
 
+<!-- Botão para avançar para o BAG -->
 <button id="btnBag" onclick="lerBag()" style="display:none;">
 📦 Escanear QR do BAG
 </button>
 
+<!-- 🆕 Botão Limpar Silo Errado -->
+<button id="btnLimpar" onclick="novaLeitura()" style="display:none;">
+❌ Limpar Silo Errado
+</button>
+
+<!-- Botão de Nova Leitura pós-validação -->
 <button id="btnNova" onclick="novaLeitura()" style="display:none;">
 🔄 Nova Leitura (Resetar)
 </button>
@@ -94,7 +108,6 @@ async function iniciarScanner(){
       alert("Nenhuma câmera encontrada.");
       return;
     }
-    // Seleciona a última câmera (geralmente a traseira em celulares)
     cameraId = devices[devices.length-1].id;
 
     await scanner.start(
@@ -125,9 +138,9 @@ async function pararScanner(){
 // ✅ Processamento da leitura (Centralizado)
 async function onScan(text){
   let material = extrairMaterial(text);
-  if(!material) return; // Ignora se o QR Code lido não contiver os materiais válidos
+  if(!material) return; 
 
-  // Cenário 1: Leitura do SILO
+  // Cenário 1: Leitura do SILO realizada com sucesso
   if(modo === "SILO"){
     await pararScanner();
     siloCode = material;
@@ -135,7 +148,10 @@ async function onScan(text){
 
     document.getElementById("result").innerHTML = "Silo: <b>"+material+"</b>";
     document.getElementById("step").innerHTML = "Clique para escanear o BAG";
+    
+    // Exibe o botão do BAG e o novo botão de Limpar/Corrigir Silo
     document.getElementById("btnBag").style.display="inline-block";
+    document.getElementById("btnLimpar").style.display="inline-block";
   } 
   // Cenário 2: Leitura do BAG
   else if(modo === "BAG"){
@@ -149,8 +165,8 @@ async function lerBag(){
   modo = "BAG";
   document.getElementById("step").innerHTML = "📦 Escaneie QR do BAG";
   document.getElementById("btnBag").style.display="none";
+  document.getElementById("btnLimpar").style.display="none"; // Oculta o limpar pois já travou o processo
   
-  // Apenas reinicia o scanner apontando para a mesma função onScan
   await iniciarScanner();
 }
 
@@ -186,37 +202,32 @@ function validar(bagMaterial){
   document.getElementById("btnNova").style.display="inline-block";
 }
 
-// 🔄 Reset Total do App (Botão Corrigir / Nova Leitura)
+// 🔄 Reset Total do App (Trata o botão Nova Leitura e o botão Limpar)
 async function novaLeitura(){
-  // Pausa e reseta sons ativos
   okSound.pause();
   errorSound.pause();
   okSound.currentTime = 0;
   errorSound.currentTime = 0;
 
-  // Garante fechamento de câmeras abertas
   await pararScanner();
 
-  // Reseta variáveis de controle
   modo = "SILO";
   siloCode = null;
 
-  // Reseta interface visual padrão
   document.body.style.backgroundColor="white";
   document.getElementById("step").innerHTML = "📷 Escaneie QR do SILO";
   document.getElementById("result").innerHTML = "";
 
-  // Oculta botões de ação temporariamente
+  // Garante que TODOS os botões de ação fiquem escondidos no reinício
   document.getElementById("btnBag").style.display="none";
+  document.getElementById("btnLimpar").style.display="none";
   document.getElementById("btnNova").style.display="none";
 
-  // Pequeno delay para garantir estabilização do hardware da câmera
   setTimeout(()=>{
     iniciarScanner();
   }, 300);
 }
 
-// Inicialização automática do primeiro passo
 iniciarScanner();
 </script>
 
