@@ -8,9 +8,6 @@
 <!-- Biblioteca do Leitor de QR Code -->
 <script src="https://unpkg.com/html5-qrcode"></script>
 
-<!-- 1. CORREÇÃO: Link oficial correto para carregar o Supabase -->
-<script src="https://jsdelivr.net"></script>
-
 <style>
 body {
   text-align:center;
@@ -49,23 +46,40 @@ button {
 <div id="reader" style="width:320px;margin:auto;"></div>
 
 <!-- Botão para avançar para o BAG -->
-<button id="btnBag" onclick="lerBag()" style="display:none;">
+<button id="btnBag" onclick="lerBag()">
 📦 Escanear QR do BAG
 </button>
 
 <!-- 🆕 Botão Limpar Silo Errado -->
-<button id="btnLimpar" onclick="novaLeitura()" style="display:none;">
+<button id="btnLimpar" onclick="novaLeitura()">
 ❌ Limpar Silo Errado
 </button>
 
 <!-- Botão de Nova Leitura pós-validação -->
-<button id="btnNova" onclick="novaLeitura()" style="display:none;">
+<button id="btnNova" onclick="novaLeitura()">
 🔄 Nova Leitura (Resetar)
 </button>
 
 <div id="result"></div>
 
+<!-- 💡 MÓDULO DO BANCO DE DADOS INTEGRADO VIA ES6 MODULE (Garante carregamento estável no mobile) -->
+<script type="module">
+  import { createClient } from "https://jsdelivr.net";
+
+  const SUPABASE_URL = "https://lttifnvifzzkzstqrhmk.supabase.co";
+  const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imx0dGlmbnZpZnp6a3pzdHFyaG1rIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk5ODgyMzUsImV4cCI6MjA5NTU2NDIzNX0.d57PT0x8LilvTQPSclq0Wc7bKA1WBFl3rlUblCczrII";
+  
+  // Disponibiliza o cliente globalmente de forma segura
+  window.supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
+  console.log("Supabase conectado com sucesso no celular!");
+</script>
+
 <script>
+// Esconde os botões dinâmicos inicialmente via JS para evitar conflito de renderização
+document.getElementById("btnBag").style.display="none";
+document.getElementById("btnLimpar").style.display="none";
+document.getElementById("btnNova").style.display="none";
+
 // 🔊 Sons
 let okSound = new Audio("ok.mp3");
 let errorSound = new Audio("erro.mp3");
@@ -90,14 +104,13 @@ let siloCode = null;
 let modo = "SILO"; // SILO ou BAG
 let bloqueioLeitura = false; // 🆕 BARREIRA DE SEGURANÇA
 
-// 2. CORREÇÃO: Ajustado para o endpoint correto da sua API do Supabase (lttifnvifzzkzstqrhmk)
-const SUPABASE_URL = "https://supabase.co";
-const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imx0dGlmbnZpZnp6a3pzdHFyaG1rIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk5ODgyMzUsImV4cCI6MjA5NTU2NDIzNX0.d57PT0x8LilvTQPSclq0Wc7bKA1WBFl3rlUblCczrII";
-const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-
 // Função assíncrona para SALVAR as informações no histórico do Supabase
 async function salvarNoHistorico(textoParaSalvar) {
-  const { data, error } = await supabase
+  if (!window.supabase) {
+    console.error('Banco de dados ainda não inicializou.');
+    return;
+  }
+  const { data, error } = await window.supabase
     .from('historico')
     .insert([{ dados: textoParaSalvar }]);
 
@@ -105,19 +118,6 @@ async function salvarNoHistorico(textoParaSalvar) {
     console.error('Erro ao salvar no Supabase:', error);
   } else {
     console.log('Validado e salvo no banco com sucesso!');
-  }
-}
-
-// Função opcional para BUSCAR o histórico se necessário
-async function carregarHistorico() {
-  const { data, error } = await supabase
-    .from('historico')
-    .select('*');
-
-  if (error) {
-    console.error('Erro ao buscar:', error);
-  } else {
-    console.log('Histórico carregado:', data);
   }
 }
 
@@ -144,6 +144,7 @@ async function iniciarScanner(){
       alert("Nenhuma câmera encontrada.");
       return;
     }
+    // Seleciona a câmera traseira do celular
     cameraId = devices[devices.length-1].id;
 
     await scanner.start(
@@ -173,14 +174,13 @@ async function pararScanner(){
 
 // ✅ Processamento da leitura (Centralizado)
 async function onScan(text){
-  if(bloqueioLeitura) return; // 🆕 Bloqueia leituras fantasmas durante transições
+  if(bloqueioLeitura) return; 
 
   let material = extrairMaterial(text);
   if(!material) return; 
 
-  // Cenário 1: Leitura do SILO realizada com sucesso
   if(modo === "SILO"){
-    bloqueioLeitura = true; // 🆕 Ativa a barreira imediatamente
+    bloqueioLeitura = true; 
     await pararScanner();
     siloCode = material;
     modo = "ESPERANDO_BAG";
@@ -188,13 +188,11 @@ async function onScan(text){
     document.getElementById("result").innerHTML = "Silo: <b>"+material+"</b>";
     document.getElementById("step").innerHTML = "Clique para escanear o BAG";
     
-    // Exibe o botão do BAG e o novo botão de Limpar/Corrigir Silo
     document.getElementById("btnBag").style.display="inline-block";
     document.getElementById("btnLimpar").style.display="inline-block";
   } 
-  // Cenário 2: Leitura do BAG
   else if(modo === "BAG"){
-    bloqueioLeitura = true; // 🆕 Ativa a barreira para não ler duas vezes seguidas
+    bloqueioLeitura = true; 
     await pararScanner();
     validar(material);
   }
@@ -203,10 +201,10 @@ async function onScan(text){
 // ✅ Transição para ler o BAG
 async function lerBag(){
   modo = "BAG";
-  bloqueioLeitura = false; // 🆕 Libera a barreira pois o usuário clicou intencionalmente
+  bloqueioLeitura = false; 
   document.getElementById("step").innerHTML = "📦 Escaneie QR do BAG";
   document.getElementById("btnBag").style.display="none";
-  document.getElementById("btnLimpar").style.display="none"; // Oculta o limpar pois já travou o processo
+  document.getElementById("btnLimpar").style.display="none"; 
   
   await iniciarScanner();
 }
@@ -218,8 +216,6 @@ function validar(bagMaterial){
   if(bagMaterial === siloCode){
     document.body.style.backgroundColor="green";
     document.getElementById("result").innerHTML = "✅ OK<br>Material: " + bagMaterial;
-
-    // Monta o texto que vai para a nuvem
     resumoParaSalvar = "Sucesso - Silo: " + siloCode + " | Bag: " + bagMaterial;
 
     if(audioLiberado){
@@ -229,8 +225,6 @@ function validar(bagMaterial){
   } else {
     document.body.style.backgroundColor="red";
     document.getElementById("result").innerHTML = "❌ ERRO<br>Silo: "+siloCode+"<br>Bag: "+bagMaterial;
-
-    // Monta o texto de falha que vai para a nuvem
     resumoParaSalvar = "ALERTA ERRO - Silo: " + siloCode + " | Bag: " + bagMaterial;
 
     if(audioLiberado){
@@ -247,14 +241,14 @@ function validar(bagMaterial){
     }
   }
 
-  // DISPARO AUTOMÁTICO PARA O BANCO DE DADOS
+  // Envia as informações para o banco de dados
   salvarNoHistorico(resumoParaSalvar);
 
   document.getElementById("step").innerHTML = "Validação Concluída";
   document.getElementById("btnNova").style.display="inline-block";
 }
 
-// 🔄 Reset Total do App (Trata o botão Nova Leitura e o botão Limpar)
+// 🔄 Reset Total do App
 async function novaLeitura(){
   okSound.pause();
   errorSound.pause();
@@ -265,13 +259,12 @@ async function novaLeitura(){
 
   modo = "SILO";
   siloCode = null;
-  bloqueioLeitura = false; // 🆕 Reseta a barreira para a nova leitura do Silo
+  bloqueioLeitura = false; 
 
   document.body.style.backgroundColor="white";
   document.getElementById("step").innerHTML = "📷 Escaneie QR do SILO";
   document.getElementById("result").innerHTML = "";
 
-  // Garante que TODOS os botões de ação fiquem escondidos no reinício
   document.getElementById("btnBag").style.display="none";
   document.getElementById("btnLimpar").style.display="none";
   document.getElementById("btnNova").style.display="none";
@@ -281,7 +274,7 @@ async function novaLeitura(){
   }, 300);
 }
 
-// Inicializa a aplicação na abertura do app
+// Inicializa o leitor
 iniciarScanner();
 </script>
 
