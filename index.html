@@ -5,7 +5,11 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Validação Material</title>
 
+<!-- Biblioteca do Leitor de QR Code -->
 <script src="https://unpkg.com/html5-qrcode"></script>
+
+<!-- LINK CORRIGIDO: Biblioteca do Banco de Dados Supabase -->
+<script src="https://jsdelivr.net"></script>
 
 <style>
 body {
@@ -85,6 +89,38 @@ let cameraId = null;
 let siloCode = null;
 let modo = "SILO"; // SILO ou BAG
 let bloqueioLeitura = false; // 🆕 BARREIRA DE SEGURANÇA
+
+// Configuração do Banco de Dados Supabase 
+// (Substitua pelos seus dados reais do painel do Supabase)
+const SUPABASE_URL = "https://supabase.com/dashboard/project/lttifnvifzzkzstqrhmk/settings/api-keys";
+const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imx0dGlmbnZpZnp6a3pzdHFyaG1rIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk5ODgyMzUsImV4cCI6MjA5NTU2NDIzNX0.d57PT0x8LilvTQPSclq0Wc7bKA1WBFl3rlUblCczrII";
+const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+// Função assíncrona para SALVAR as informações no histórico do Supabase
+async function salvarNoHistorico(textoParaSalvar) {
+  const { data, error } = await supabase
+    .from('historico')
+    .insert([{ dados: textoParaSalvar }]);
+
+  if (error) {
+    console.error('Erro ao salvar no Supabase:', error);
+  } else {
+    console.log('Validado e salvo no banco com sucesso!');
+  }
+}
+
+// Função opcional para BUSCAR o histórico se necessário
+async function carregarHistorico() {
+  const { data, error } = await supabase
+    .from('historico')
+    .select('*');
+
+  if (error) {
+    console.error('Erro ao buscar:', error);
+  } else {
+    console.log('Histórico carregado:', data);
+  }
+}
 
 // ✅ Extrair material válido do texto
 function extrairMaterial(texto){
@@ -176,11 +212,16 @@ async function lerBag(){
   await iniciarScanner();
 }
 
-// ✅ Validação e disparo dos alarmes
+// ✅ Validação, disparo dos alarmes e salvamento automático
 function validar(bagMaterial){
+  let resumoParaSalvar = "";
+
   if(bagMaterial === siloCode){
     document.body.style.backgroundColor="green";
     document.getElementById("result").innerHTML = "✅ OK<br>Material: " + bagMaterial;
+
+    // Monta o texto que vai para a nuvem
+    resumoParaSalvar = "Sucesso - Silo: " + siloCode + " | Bag: " + bagMaterial;
 
     if(audioLiberado){
       okSound.currentTime = 0;
@@ -189,6 +230,9 @@ function validar(bagMaterial){
   } else {
     document.body.style.backgroundColor="red";
     document.getElementById("result").innerHTML = "❌ ERRO<br>Silo: "+siloCode+"<br>Bag: "+bagMaterial;
+
+    // Monta o texto de falha que vai para a nuvem
+    resumoParaSalvar = "ALERTA ERRO - Silo: " + siloCode + " | Bag: " + bagMaterial;
 
     if(audioLiberado){
       errorSound.currentTime = 0;
@@ -203,6 +247,9 @@ function validar(bagMaterial){
       navigator.vibrate([300, 200, 300]);
     }
   }
+
+  // DISPARO AUTOMÁTICO PARA O BANCO DE DADOS
+  salvarNoHistorico(resumoParaSalvar);
 
   document.getElementById("step").innerHTML = "Validação Concluída";
   document.getElementById("btnNova").style.display="inline-block";
@@ -235,6 +282,7 @@ async function novaLeitura(){
   }, 300);
 }
 
+// Inicializa a aplicação na abertura do app
 iniciarScanner();
 </script>
 
