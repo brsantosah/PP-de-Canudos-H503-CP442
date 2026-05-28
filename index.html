@@ -111,7 +111,7 @@ async function salvarNoHistorico(textoParaSalvar) {
     return;
   }
   const { data, error } = await window.supabase
-    .from('historico')
+    .from('Histórico H503 e CP442')
     .insert([{ dados: textoParaSalvar }]);
 
   if (error) {
