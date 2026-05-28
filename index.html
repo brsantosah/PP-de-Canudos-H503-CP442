@@ -84,6 +84,7 @@ let scanner = null;
 let cameraId = null;
 let siloCode = null;
 let modo = "SILO"; // SILO ou BAG
+let bloqueioLeitura = false; // 🆕 BARREIRA DE SEGURANÇA
 
 // ✅ Extrair material válido do texto
 function extrairMaterial(texto){
@@ -137,11 +138,14 @@ async function pararScanner(){
 
 // ✅ Processamento da leitura (Centralizado)
 async function onScan(text){
+  if(bloqueioLeitura) return; // 🆕 Bloqueia leituras fantasmas durante transições
+
   let material = extrairMaterial(text);
   if(!material) return; 
 
   // Cenário 1: Leitura do SILO realizada com sucesso
   if(modo === "SILO"){
+    bloqueioLeitura = true; // 🆕 Ativa a barreira imediatamente
     await pararScanner();
     siloCode = material;
     modo = "ESPERANDO_BAG";
@@ -155,6 +159,7 @@ async function onScan(text){
   } 
   // Cenário 2: Leitura do BAG
   else if(modo === "BAG"){
+    bloqueioLeitura = true; // 🆕 Ativa a barreira para não ler duas vezes seguidas
     await pararScanner();
     validar(material);
   }
@@ -163,6 +168,7 @@ async function onScan(text){
 // ✅ Transição para ler o BAG
 async function lerBag(){
   modo = "BAG";
+  bloqueioLeitura = false; // 🆕 Libera a barreira pois o usuário clicou intencionalmente
   document.getElementById("step").innerHTML = "📦 Escaneie QR do BAG";
   document.getElementById("btnBag").style.display="none";
   document.getElementById("btnLimpar").style.display="none"; // Oculta o limpar pois já travou o processo
@@ -213,6 +219,7 @@ async function novaLeitura(){
 
   modo = "SILO";
   siloCode = null;
+  bloqueioLeitura = false; // 🆕 Reseta a barreira para a nova leitura do Silo
 
   document.body.style.backgroundColor="white";
   document.getElementById("step").innerHTML = "📷 Escaneie QR do SILO";
