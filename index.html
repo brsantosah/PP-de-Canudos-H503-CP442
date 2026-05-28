@@ -8,7 +8,7 @@
 <!-- Biblioteca do Leitor de QR Code -->
 <script src="https://unpkg.com/html5-qrcode"></script>
 
-<!-- LINK CORRIGIDO: Biblioteca do Banco de Dados Supabase -->
+<!-- 1. CORREÇÃO: Link oficial correto para carregar o Supabase -->
 <script src="https://jsdelivr.net"></script>
 
 <style>
@@ -90,11 +90,10 @@ let siloCode = null;
 let modo = "SILO"; // SILO ou BAG
 let bloqueioLeitura = false; // 🆕 BARREIRA DE SEGURANÇA
 
-// Configuração do Banco de Dados Supabase 
-// (Substitua pelos seus dados reais do painel do Supabase)
-const SUPABASE_URL = "https://supabase.com/dashboard/project/lttifnvifzzkzstqrhmk/settings/api-keys";
+// 2. CORREÇÃO: Ajustado para o endpoint correto da sua API do Supabase (lttifnvifzzkzstqrhmk)
+const SUPABASE_URL = "https://supabase.co";
 const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imx0dGlmbnZpZnp6a3pzdHFyaG1rIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk5ODgyMzUsImV4cCI6MjA5NTU2NDIzNX0.d57PT0x8LilvTQPSclq0Wc7bKA1WBFl3rlUblCczrII";
-const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 // Função assíncrona para SALVAR as informações no histórico do Supabase
 async function salvarNoHistorico(textoParaSalvar) {
