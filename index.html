@@ -5,9 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Validação Material</title>
 
-<!-- Links oficiais e estáveis via UNPKG (Garante o funcionamento no celular) -->
-<script src="https://unpkg.com"></script>
-<script src="https://unpkg.com"></script>
+<!-- Links redundantes de alta disponibilidade (Evita bloqueios de firewall de rede) -->
+<script src="https://jsdelivr.net"></script>
+<script src="https://jsdelivr.net"></script>
 
 <style>
 body {
@@ -45,7 +45,7 @@ button {
 
 <div id="reader" style="width:320px;margin:auto;"></div>
 
-<!-- Botões de ação (Iniciam estritamente escondidos) -->
+<!-- Botões de ação (Iniciam estritamente escondidos via HTML) -->
 <button id="btnBag" onclick="lerBag()" style="display:none;">📦 Escanear QR do BAG</button>
 <button id="btnLimpar" onclick="novaLeitura()" style="display:none;">❌ Limpar Silo Errado</button>
 <button id="btnNova" onclick="novaLeitura()" style="display:none;">🔄 Nova Leitura (Resetar)</button>
@@ -58,23 +58,30 @@ const SUPABASE_URL = "https://supabase.co";
 const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imx0dGlmbnZpZnp6a3pzdHFyaG1rIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk5ODgyMzUsImV4cCI6MjA5NTU2NDIzNX0.d57PT0x8LilvTQPSclq0Wc7bKA1WBFl3rlUblCczrII";
 let supabaseClient = null;
 
-// Inicializa o cliente se a biblioteca carregou com sucesso
-if (typeof supabase !== 'undefined') {
-  supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+// Tenta carregar usando as diferentes nomenclaturas possíveis da biblioteca injetada
+function mapearBanco() {
+  if (typeof supabase !== 'undefined' && supabase.createClient) {
+    supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+    console.log("Banco de dados pronto para o histórico.");
+  } else if (window.supabase && window.supabase.createClient) {
+    supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+    console.log("Banco de dados pronto para o histórico (global).");
+  } else {
+    console.warn("Aviso: Histórico rodando de modo offline temporário.");
+  }
 }
 
-// Função para enviar os dados para o Supabase
 async function salvarNoHistorico(textoParaSalvar) {
   if (!supabaseClient) {
-    console.error('Banco de dados offline. Registro local:', textoParaSalvar);
+    console.error('Banco offline. Conteúdo não registrado:', textoParaSalvar);
     return;
   }
   const { data, error } = await supabaseClient
     .from('Histórico H503 e CP442')
     .insert([{ Dados: textoParaSalvar }]);
 
-  if (error) console.error('Erro Supabase:', error);
-  else console.log('Histórico gravado na nuvem!');
+  if (error) console.error('Erro de envio ao banco:', error);
+  else console.log('Sucesso: Histórico adicionado à nuvem.');
 }
 
 // --- CONTROLE DO SCANNER E ÁUDIO ---
@@ -106,27 +113,30 @@ function extrairMaterial(texto){
 }
 
 async function iniciarScanner(){
-  if (typeof Html5Qrcode === 'undefined') {
-    console.error("Aguardando carregamento do leitor...");
+  // Verificação dupla do leitor
+  let construtorLeitor = typeof Html5Qrcode !== 'undefined' ? Html5Qrcode : (window.Html5Qrcode || null);
+  
+  if (!construtorLeitor) {
+    console.error("Aguardando inicialização dos scripts de câmera...");
     setTimeout(iniciarScanner, 1000);
     return;
   }
   try {
     await pararScanner();
     document.getElementById("reader").innerHTML = "";
-    scanner = new Html5Qrcode("reader");
+    scanner = new construtorLeitor("reader");
 
-    let devices = await Html5Qrcode.getCameras();
+    let devices = await construtorLeitor.getCameras();
     if(devices.length === 0) {
-      alert("Nenhuma câmera encontrada.");
+      alert("Nenhuma câmera detectada neste aparelho.");
       return;
     }
     
-    // Seleciona a câmera traseira do celular
     cameraId = devices[devices.length-1].id;
     await scanner.start(cameraId, { fps:10, qrbox:200 }, onScan);
+    console.log("Câmera inicializada com sucesso!");
   } catch (err) {
-    console.error("Erro ao iniciar o scanner:", err);
+    console.error("Não foi possível acessar a câmera:", err);
   }
 }
 
@@ -189,9 +199,7 @@ function validar(bagMaterial){
     }
   }
 
-  // Grava o resultado final no banco de dados automaticamente
   salvarNoHistorico(resumoParaSalvar);
-  
   document.getElementById("step").innerHTML = "Validação Concluída";
   document.getElementById("btnNova").style.display="inline-block";
 }
@@ -210,8 +218,11 @@ async function novaLeitura(){
   setTimeout(iniciarScanner, 300);
 }
 
-// Inicializa a aplicação
-iniciarScanner();
+// Dispara as configurações assim que a estrutura da página HTML carregar completamente
+window.addEventListener('DOMContentLoaded', () => {
+  mapearBanco();
+  iniciarScanner();
+});
 </script>
 </body>
 </html>
