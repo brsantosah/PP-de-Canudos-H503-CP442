@@ -5,15 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Validação Material</title>
 
-<!-- 💡 CÓDIGO EMBUTIDO DO LEITOR DE QR CODE (NÃO DEPENDE MAIS DA INTERNET/CDN) -->
-<script>
-/*html5-qrcode v2.3.8*/
-!function(e,t){"object"==typeof exports&&"undefined"!=typeof module?t(exports):"function"==typeof define&&define.amd?define(["exports"],t):t((e="undefined"!=typeof globalThis?globalThis:e||self).Html5QrcodeBind={})}(this,(function(e){"use strict";});
-// (O navegador lerá a versão compactada oficial de forma local)
-</script>
+<!-- Links oficiais e estáveis via UNPKG (Garante o funcionamento no celular) -->
 <script src="https://unpkg.com"></script>
-
-<!-- 💡 CÓDIGO EMBUTIDO DO BANCO DE DADOS SUPABASE (COMPACTADO E INTEGRADO LOCALMENTE) -->
 <script src="https://unpkg.com"></script>
 
 <style>
@@ -52,7 +45,7 @@ button {
 
 <div id="reader" style="width:320px;margin:auto;"></div>
 
-<!-- Botões de ação iniciam explicitamente escondidos -->
+<!-- Botões de ação (Iniciam estritamente escondidos) -->
 <button id="btnBag" onclick="lerBag()" style="display:none;">📦 Escanear QR do BAG</button>
 <button id="btnLimpar" onclick="novaLeitura()" style="display:none;">❌ Limpar Silo Errado</button>
 <button id="btnNova" onclick="novaLeitura()" style="display:none;">🔄 Nova Leitura (Resetar)</button>
@@ -65,12 +58,12 @@ const SUPABASE_URL = "https://supabase.co";
 const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imx0dGlmbnZpZnp6a3pzdHFyaG1rIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk5ODgyMzUsImV4cCI6MjA5NTU2NDIzNX0.d57PT0x8LilvTQPSclq0Wc7bKA1WBFl3rlUblCczrII";
 let supabaseClient = null;
 
-// Só ativa se a biblioteca responder corretamente
+// Inicializa o cliente se a biblioteca carregou com sucesso
 if (typeof supabase !== 'undefined') {
   supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 }
 
-// Função para registrar na tabela
+// Função para enviar os dados para o Supabase
 async function salvarNoHistorico(textoParaSalvar) {
   if (!supabaseClient) {
     console.error('Banco de dados offline. Registro local:', textoParaSalvar);
@@ -124,8 +117,12 @@ async function iniciarScanner(){
     scanner = new Html5Qrcode("reader");
 
     let devices = await Html5Qrcode.getCameras();
-    if(devices.length === 0) return;
+    if(devices.length === 0) {
+      alert("Nenhuma câmera encontrada.");
+      return;
+    }
     
+    // Seleciona a câmera traseira do celular
     cameraId = devices[devices.length-1].id;
     await scanner.start(cameraId, { fps:10, qrbox:200 }, onScan);
   } catch (err) {
@@ -192,7 +189,9 @@ function validar(bagMaterial){
     }
   }
 
+  // Grava o resultado final no banco de dados automaticamente
   salvarNoHistorico(resumoParaSalvar);
+  
   document.getElementById("step").innerHTML = "Validação Concluída";
   document.getElementById("btnNova").style.display="inline-block";
 }
@@ -211,7 +210,7 @@ async function novaLeitura(){
   setTimeout(iniciarScanner, 300);
 }
 
-// Inicialização garantida
+// Inicializa a aplicação
 iniciarScanner();
 </script>
 </body>
