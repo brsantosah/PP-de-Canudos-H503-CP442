@@ -6,7 +6,10 @@
 <title>Validação Material</title>
 
 <!-- Biblioteca do Leitor de QR Code -->
-<script src="https://unpkg.com/html5-qrcode"></script>
+<script src="https://unpkg.com"></script>
+
+<!-- 💡 CORREÇÃO 1: Carregamento direto da biblioteca global do Supabase (Evita o erro de inicialização) -->
+<script src="https://jsdelivr.net"></script>
 
 <style>
 body {
@@ -62,19 +65,13 @@ button {
 
 <div id="result"></div>
 
-<!-- 💡 MÓDULO DO BANCO DE DADOS INTEGRADO VIA ES6 MODULE -->
-<script type="module">
-  // CORREÇÃO 1: Link oficial reestabelecido para o celular carregar o Supabase corretamente
-  import { createClient } from "https://jsdelivr.net";
-
-  const SUPABASE_URL = "https://lttifnvifzzkzstqrhmk.supabase.co";
-  const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imx0dGlmbnZpZnp6a3pzdHFyaG1rIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk5ODgyMzUsImV4cCI6MjA5NTU2NDIzNX0.d57PT0x8LilvTQPSclq0Wc7bKA1WBFl3rlUblCczrII";
-  
-  window.supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
-  console.log("Supabase inicializado.");
-</script>
-
 <script>
+// 💡 CORREÇÃO 2: Conexão direta e imediata criada no início do script principal
+const SUPABASE_URL = "https://supabase.co";
+const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imx0dGlmbnZpZnp6a3pzdHFyaG1rIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk5ODgyMzUsImV4cCI6MjA5NTU2NDIzNX0.d57PT0x8LilvTQPSclq0Wc7bKA1WBFl3rlUblCczrII";
+const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+// Esconde os botões dinâmicos inicialmente
 document.getElementById("btnBag").style.display="none";
 document.getElementById("btnLimpar").style.display="none";
 document.getElementById("btnNova").style.display="none";
@@ -102,13 +99,8 @@ let bloqueioLeitura = false;
 
 // Função assíncrona para SALVAR as informações no histórico do Supabase
 async function salvarNoHistorico(textoParaSalvar) {
-  if (!window.supabase) {
-    console.error('Banco de dados ainda não inicializou.');
-    return;
-  }
-  
-  // CORREÇÃO 2: Nome da tabela com acentos e nome da coluna "Dados" com "D" maiúsculo (idêntico ao painel da sua imagem)
-  const { data, error } = await window.supabase
+  // Envia diretamente usando o cliente unificado
+  const { data, error } = await supabaseClient
     .from('Histórico H503 e CP442')
     .insert([{ Dados: textoParaSalvar }]);
 
