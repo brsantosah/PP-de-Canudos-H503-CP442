@@ -101,21 +101,31 @@ let modo = "SILO";
 let bloqueioLeitura = false; 
 
 // Função assíncrona para SALVAR as informações no histórico do Supabase
+
 async function salvarNoHistorico(textoParaSalvar) {
   if (!window.supabase) {
-    console.error('Banco de dados ainda não inicializou.');
+    console.error('Banco não inicializou.');
     return;
   }
+
+  const agora = new Date();
+
+  const dataHora = agora.toLocaleString("pt-BR", {
+    dateStyle: "short",
+    timeStyle: "medium"
+  });
+
+  const textoFinal = `${dataHora} | ${textoParaSalvar}`;
   
   // CORREÇÃO 2: Nome da tabela com acentos e nome da coluna "Dados" com "D" maiúsculo (idêntico ao painel da sua imagem)
-  const { data, error } = await window.supabase
+const { data, error } = await window.supabase
     .from('Histórico H503 e CP442')
-    .insert([{ Dados: textoParaSalvar }]);
-
-  if (error) {
-    console.error('Erro ao salvar no Supabase:', error);
+    .insert([{ Dados: textoFinal }]);
+  
+if (error) {
+    console.error('Erro Supabase:', error);
   } else {
-    console.log('Validado e salvo no banco com sucesso!');
+    console.log('✅ Salvo com data e hora!');
   }
 }
 
